@@ -26,7 +26,7 @@ async function retry(fn, retries = 3) {
 
 async function reviewWithGemini() {
   const res = await axios.post(
-    `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
     {
       contents: [
         {
@@ -48,7 +48,7 @@ ${diff}
     }
   );
 
-  return res.data.candidates[0].content.parts[0].text;
+  return res.data.candidates?.[0]?.content?.parts?.[0]?.text || "No response from Gemini";
 }
 
 async function main() {
