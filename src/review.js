@@ -6,12 +6,10 @@ dotenv.config();
 
 const diff = fs.readFileSync("diff.txt", "utf-8");
 
-// 🔹 Utility: sleep
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// 🔹 Retry wrapper
 async function retry(fn, retries = 3) {
   try {
     return await fn();
@@ -26,69 +24,43 @@ async function retry(fn, retries = 3) {
   }
 }
 
-// 🔹 ChatGPT Review
-async function reviewWithChatGPT() {
-  console.log("API KEY:", process.env.OPENAI_API_KEY ? "Loaded ✅" : "Missing ❌");
-
-  const res = await axios.post(
-    "https://api.openai.com/v1/chat/completions",
-    {
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "user",
-          content: `Review this code for bugs, security issues and improvements:\n${diff}`
-        }
-      ]
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
-      }
-    }
-  );
-
-  return res.data.choices[0].message.content;
-}
-
-// 🔹 Gemini Review
 async function reviewWithGemini() {
   const res = await axios.post(
     `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
     {
       contents: [
         {
-          parts: [{ text: `Review this code:\n${diff}` }]
+          parts: [{
+            text: `
+You are a senior code reviewer.
+
+Analyze this code and give:
+1. Bugs
+2. Security issues
+3. Improvements
+
+Code:
+${diff}
+`
+          }]
         }
       ]
     }
   );
 
-  return JSON.stringify(res.data, null, 2);
+  return res.data.candidates[0].content.parts[0].text;
 }
 
 async function main() {
-  console.log("🚀 Starting AI Review...");
+  console.log("🚀 Starting Gemini AI Review...");
 
-  const chatgpt = await retry(reviewWithChatGPT);
+  const review = await retry(reviewWithGemini);
 
-  await sleep(2000); // prevent rate limit
+  fs.writeFileSync("review.txt", `
+## 🤖 AI Code Review (Gemini)
 
-  const gemini = await retry(reviewWithGemini);
-
-  const finalReview = `
-## 🤖 AI Code Review
-
-### ChatGPT:
-${chatgpt}
-
----
-
-### Gemini:
-${gemini}
-`;
-
-  fs.writeFileSync("review.txt", finalReview);
+${review}
+`);
 
   console.log("✅ Review generated successfully");
 }
