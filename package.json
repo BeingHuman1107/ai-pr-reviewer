@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/BeingHuman1107/ai-pr-reviewer#readme",
   "dependencies": {
+    "@google/genai": "^1.51.0",
     "axios": "^1.15.2",
     "dotenv": "^17.4.2"
   }

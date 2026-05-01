@@ -1,51 +1,43 @@
-import axios from "axios";
 import fs from "fs";
 import dotenv from "dotenv";
+import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
+
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+});
 
 // Read diff
 let diff = "";
 try {
   diff = fs.readFileSync("diff.txt", "utf-8");
-} catch (e) {
-  console.log("⚠️ diff.txt not found, using fallback");
+} catch {
   diff = "function test(){ return 1 }";
 }
 
-// Sleep utility
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-// Retry logic
+// Retry helper
 async function retry(fn, retries = 3) {
   try {
     return await fn();
   } catch (error) {
-    if (error.response?.status === 429 && retries > 0) {
-      console.log("⚠️ Rate limit hit. Retrying...");
-      await sleep(3000);
+    if (retries > 0) {
+      console.log("⚠️ Retrying...");
+      await new Promise(r => setTimeout(r, 2000));
       return retry(fn, retries - 1);
     }
-
-    console.log("❌ Gemini Error:", error.response?.status, error.message);
-    return "❌ Error during AI review";
+    console.log("❌ Error:", error.message);
+    return "Error during AI review";
   }
 }
 
-// ✅ WORKING Gemini API (latest stable)
+// Gemini Review
 async function reviewWithGemini() {
   console.log("🔑 Gemini Key:", process.env.GEMINI_API_KEY ? "Loaded ✅" : "Missing ❌");
 
-  const res = await axios.post(
-    `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-    {
-      contents: [
-        {
-          parts: [
-            {
-              text: `
+  const response = await ai.models.generateContent({
+    model: "gemini-1.5-flash",
+    contents: `
 You are a senior code reviewer.
 
 Analyze this code and provide:
@@ -55,27 +47,15 @@ Analyze this code and provide:
 
 Code:
 ${diff}
-`
-            }
-          ]
-        }
-      ]
-    },
-    {
-      headers: {
-        "Content-Type": "application/json"
-      }
-    }
-  );
+`,
+  });
 
-  return res.data?.candidates?.[0]?.content?.parts?.[0]?.text || "No response from Gemini";
+  return response.text;
 }
 
 // Main
 async function main() {
   console.log("🚀 Starting Gemini AI Review...");
-
-  console.log("📄 DIFF LENGTH:", diff.length);
 
   const review = await retry(reviewWithGemini);
 
