@@ -25,6 +25,7 @@ async function reviewWithChatGPT() {
       }
     }
   );
+  console.log("API KEY:", process.env.OPENAI_API_KEY ? "Loaded ✅" : "Missing ❌");
 
   return res.data.choices[0].message.content;
 }
