@@ -38,6 +38,11 @@ jobs:
           git fetch origin ${{ github.base_ref }}
           git diff origin/${{ github.base_ref }} -- '*.js' > diff.txt   
 
+      - name: Get Changed Files
+  run: |
+    git fetch origin ${{ github.base_ref }}
+    git diff --name-only origin/${{ github.base_ref }} > files.txt    
+
       - name: Run AI Review
         run: node src/review.js
 

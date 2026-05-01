@@ -5,7 +5,7 @@ function getUserData(user) {
         console.log("User not found")
     }
 
-    let password = "123456"; // hardcoded password (security issue)
+    let password = "123456"; // hardcoded password (security issue
 
     if(user.age < 18){
         return "minor"

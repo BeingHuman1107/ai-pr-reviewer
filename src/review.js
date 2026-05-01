@@ -8,81 +8,99 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
-// 🔹 Read diff safely
-let diff = "";
+// 🔹 Read changed files
+let files = [];
 try {
-  diff = fs.readFileSync("diff.txt", "utf-8");
+  const content = fs.readFileSync("files.txt", "utf-8");
+  files = content.split("\n").filter(f => f.endsWith(".js"));
 } catch {
-  console.log("⚠️ diff.txt not found, using fallback");
-  diff = "function test(){ return 1 }";
+  console.log("⚠️ files.txt not found");
 }
 
-// 🔥 LIMIT DIFF SIZE (important for quota)
-if (diff.length > 5000) {
-  console.log("⚠️ Diff too large, truncating...");
-  diff = diff.substring(0, 5000);
+console.log("📂 Changed files:", files);
+
+// 🔹 Read file contents
+let codeBundle = "";
+
+for (const file of files) {
+  try {
+    const code = fs.readFileSync(file, "utf-8");
+
+    codeBundle += `
+FILE: ${file}
+--------------------
+${code}
+--------------------
+`;
+  } catch {
+    console.log(`⚠️ Could not read ${file}`);
+  }
 }
 
-console.log("📄 Diff length:", diff.length);
-
-// 🔹 Sleep utility
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+// fallback
+if (!codeBundle) {
+  codeBundle = "function test(){ return 1 }";
 }
 
-// 🔹 Retry logic (handles 429 quota errors)
+// 🔥 limit size
+if (codeBundle.length > 6000) {
+  console.log("⚠️ Code too large, truncating...");
+  codeBundle = codeBundle.substring(0, 6000);
+}
+
+console.log("📄 Code size:", codeBundle.length);
+
+// 🔹 Retry
 async function retry(fn, retries = 3) {
   try {
     return await fn();
   } catch (error) {
     if (error.message?.includes("429") && retries > 0) {
-      console.log("⚠️ Rate limit hit. Waiting 5s...");
-      await sleep(5000);
+      console.log("⚠️ Rate limit, retrying...");
+      await new Promise(r => setTimeout(r, 5000));
       return retry(fn, retries - 1);
     }
     console.log("❌ Error:", error.message);
-    return "❌ Error during AI review (quota or API issue)";
+    return "AI review failed";
   }
 }
 
 // 🔹 Gemini Review
 async function reviewWithGemini() {
-  console.log("🔑 Gemini Key:", process.env.GEMINI_API_KEY ? "Loaded ✅" : "Missing ❌");
-
   const response = await ai.models.generateContent({
-    model: "Gemini 2.5 Flash", // ✅ your working model 
+    model: "gemini-3-flash-preview",
     contents: `
-You are a senior code reviewer.
+You are a senior software engineer reviewing a pull request.
 
-Review the following code and provide:
-- Bugs
-- Security issues
-- Improvements
+Review ONLY the given files.
+
+Provide:
+
+### 🚨 Critical Issues
+### ⚠️ Improvements
+### 🔐 Security Issues
+### ✅ Summary
 
 Code:
-${diff}
+${codeBundle}
 `,
   });
 
   return response.text;
 }
 
-// 🔹 Main function
+// 🔹 Main
 async function main() {
-  console.log("🚀 Starting Gemini AI Review...");
+  console.log("🚀 Starting AI Review...");
 
   const review = await retry(reviewWithGemini);
 
   fs.writeFileSync(
     "review.txt",
-    `
-## 🤖 AI Code Review (Gemini)
-
-${review}
-`
+    `## 🤖 AI Code Review\n\n${review}`
   );
 
-  console.log("✅ Review generated successfully");
+  console.log("✅ Done");
 }
 
 main();
