@@ -4,6 +4,12 @@ on:
   pull_request:
     types: [opened, synchronize]
 
+# 🔥 REQUIRED: allow commenting on PR
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
 jobs:
   review:
     runs-on: ubuntu-latest
@@ -32,14 +38,19 @@ jobs:
       - name: Run AI Review
         run: node src/review.js
 
+      # 🔥 Safer: ensure file exists before commenting
       - name: Comment PR
         uses: actions/github-script@v6
         with:
           script: |
             const fs = require('fs');
-            const review = fs.readFileSync('review.txt', 'utf8');
 
-            github.rest.issues.createComment({
+            let review = "⚠️ AI review not generated";
+            if (fs.existsSync('review.txt')) {
+              review = fs.readFileSync('review.txt', 'utf8');
+            }
+
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
