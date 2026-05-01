@@ -19,7 +19,8 @@ const trimmedDiff = diff.slice(0, 12000);
 const MODELS = [
   "gemini-1.5-flash-latest",
   "gemini-1.5-pro-latest",
-  "gemini-1.0-pro"
+  "gemini-1.0-pro",
+  "gemini-3.1-pro-preview"
 ];
 
 // 🔹 Sleep helper (for retry)
