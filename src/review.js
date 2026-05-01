@@ -19,15 +19,15 @@ async function retry(fn, retries = 3) {
       await sleep(3000);
       return retry(fn, retries - 1);
     }
-    console.error("❌ API Error:", error.message);
+   console.error("❌ Full Error:", error.response?.data || error.message);
     return "Error during AI review";
   }
 }
 
 async function reviewWithGemini() { 
-  
+
   const res = await axios.post(
-    `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
     {
       contents: [
         {
