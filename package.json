@@ -1,0 +1,25 @@
+{
+  "name": "ai-pr-reviewer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BeingHuman1107/ai-pr-reviewer.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/BeingHuman1107/ai-pr-reviewer/issues"
+  },
+  "homepage": "https://github.com/BeingHuman1107/ai-pr-reviewer#readme",
+  "dependencies": {
+    "axios": "^1.15.2",
+    "dotenv": "^17.4.2"
+  }
+}
