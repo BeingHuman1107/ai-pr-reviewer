@@ -10,6 +10,8 @@ permissions:
   pull-requests: write
   issues: write
 
+  
+
 jobs:
   review:
     runs-on: ubuntu-latest
@@ -26,6 +28,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 18
+           
 
       - name: Install Dependencies
         run: npm install
@@ -33,7 +36,7 @@ jobs:
       - name: Get Diff
         run: |
           git fetch origin ${{ github.base_ref }}
-          git diff origin/${{ github.base_ref }} > diff.txt
+          git diff origin/${{ github.base_ref }} -- '*.js' > diff.txt   
 
       - name: Run AI Review
         run: node src/review.js
