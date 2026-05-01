@@ -1,106 +1,68 @@
+import axios from "axios";
 import fs from "fs";
 import dotenv from "dotenv";
-import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-});
+const diff = fs.readFileSync("diff.txt", "utf-8");
 
-// 🔹 Read changed files
-let files = [];
-try {
-  const content = fs.readFileSync("files.txt", "utf-8");
-  files = content.split("\n").filter(f => f.endsWith(".js"));
-} catch {
-  console.log("⚠️ files.txt not found");
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-console.log("📂 Changed files:", files);
-
-// 🔹 Read file contents
-let codeBundle = "";
-
-for (const file of files) {
-  try {
-    const code = fs.readFileSync(file, "utf-8");
-
-    codeBundle += `
-FILE: ${file}
---------------------
-${code}
---------------------
-`;
-  } catch {
-    console.log(`⚠️ Could not read ${file}`);
-  }
-}
-
-// fallback
-if (!codeBundle) {
-  codeBundle = "function test(){ return 1 }";
-}
-
-// 🔥 limit size
-if (codeBundle.length > 6000) {
-  console.log("⚠️ Code too large, truncating...");
-  codeBundle = codeBundle.substring(0, 6000);
-}
-
-console.log("📄 Code size:", codeBundle.length);
-
-// 🔹 Retry
 async function retry(fn, retries = 3) {
   try {
     return await fn();
   } catch (error) {
-    if (error.message?.includes("429") && retries > 0) {
-      console.log("⚠️ Rate limit, retrying...");
-      await new Promise(r => setTimeout(r, 5000));
+    if (error.response?.status === 429 && retries > 0) {
+      console.log("⚠️ Rate limit hit. Retrying...");
+      await sleep(3000);
       return retry(fn, retries - 1);
     }
-    console.log("❌ Error:", error.message);
-    return "AI review failed";
+    console.error("❌ API Error:", error.message);
+    return "Error during AI review";
   }
 }
 
-// 🔹 Gemini Review
 async function reviewWithGemini() {
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: `
-You are a senior software engineer reviewing a pull request.
+  const res = await axios.post(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    {
+      contents: [
+        {
+          parts: [{
+            text: `
+You are a senior code reviewer.
 
-Review ONLY the given files.
-
-Provide:
-
-### 🚨 Critical Issues
-### ⚠️ Improvements
-### 🔐 Security Issues
-### ✅ Summary
+Analyze this code and give:
+1. Bugs
+2. Security issues
+3. Improvements
 
 Code:
-${codeBundle}
-`,
-  });
+${diff}
+`
+          }]
+        }
+      ]
+    }
+  );
 
-  return response.text;
+  return res.data.candidates?.[0]?.content?.parts?.[0]?.text || "No response from Gemini";
 }
 
-// 🔹 Main
 async function main() {
-  console.log("🚀 Starting AI Review...");
+  console.log("🚀 Starting Gemini AI Review...");
 
   const review = await retry(reviewWithGemini);
 
-  fs.writeFileSync(
-    "review.txt",
-    `## 🤖 AI Code Review\n\n${review}`
-  );
+  fs.writeFileSync("review.txt", `
+## 🤖 AI Code Review (Gemini)
 
-  console.log("✅ Done");
+${review}
+`);
+
+  console.log("✅ Review generated successfully");
 }
 
 main();
